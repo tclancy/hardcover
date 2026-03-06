@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Hardcover → Dover Library Linker
 // @namespace    https://github.com/tclancy/hardcover-library-linker
-// @version      1.0.0
-// @description  Adds Dover Public Library search links next to book titles and authors on Hardcover want-to-read page
+// @version      1.1.0
+// @description  Adds Dover Public Library search links next to book titles and authors on Hardcover bookshelf pages
 // @author       Tom Clancy
 // @match        https://hardcover.app/@*/books/*
 // @match        https://hardcover.app/books/*
@@ -17,7 +17,7 @@
   const LIBRARY_BASE = 'https://librarycatalog.dover.nh.gov/cgi-bin/koha/opac-search.pl';
 
   function libraryTitleUrl(title) {
-    return LIBRARY_BASE + '?q=' + encodeURIComponent(title);
+    return LIBRARY_BASE + '?q=' + encodeURIComponent(title) + '&limit=itype:BK';
   }
 
   function libraryAuthorUrl(author) {
@@ -75,10 +75,21 @@
   // Hardcover is a React + Inertia.js SPA with Tailwind CSS.
   // Class names may be hashed/purged so we find elements by their href patterns:
   //   - Book links:   href="/books/<slug>"
-  //   - Author links: href="/authors/<slug>"  or  href="/contributors/<slug>"
+  //   - Author links (detail pages): href="/authors/<slug>" or "/contributors/<slug>"
+  //   - Author bylines (bookshelf pages): no anchor — a span.flex-inline containing
+  //     a child span with "By" text, followed by a sibling span with the author name.
   //
-  // Each anchor is the canonical "title" or "author" element.  We inject a
-  // library link immediately after each anchor we haven't touched yet.
+  //     Example DOM structure:
+  //       <span class="flex-inline flex-row flex-wrap leading-5">
+  //         <span class="text-md mr-1">By</span>
+  //         <span class="flex-inline flex-row mr-1">   ← author name container
+  //           <span class="flex-inline flex-row items-center">
+  //             <span>Lucy Ellmann</span>
+  //           </span>
+  //         </span>
+  //       </span>
+  //
+  // Strategy: find the "By" span, take its nextElementSibling, grab .innerText.
 
   function injectBookLinks() {
     // Book title links
@@ -93,7 +104,7 @@
       injectAfter(anchor, link);
     });
 
-    // Author links
+    // Author links (detail/author pages — anchor-based)
     const authorAnchors = document.querySelectorAll(
       'a[href^="/authors/"]:not([' + INJECTED_ATTR + ']), a[href^="/contributors/"]:not([' + INJECTED_ATTR + '])'
     );
@@ -103,6 +114,26 @@
       anchor.setAttribute(INJECTED_ATTR, '1');
       const link = makeLibLink(libraryAuthorUrl(author), '📚 lib');
       injectAfter(anchor, link);
+    });
+
+    // Author bylines (bookshelf pages — span-based, no anchor)
+    // Find every span whose direct text content is "By" or starts with "By"
+    // then take the next sibling span as the author name container.
+    const allSpans = document.querySelectorAll('span:not([' + INJECTED_ATTR + '])');
+    allSpans.forEach((span) => {
+      if (span.children.length > 0) return;
+      const text = span.textContent.trim();
+      if (text !== 'By' && !text.startsWith('By ')) return;
+
+      const authorContainer = span.nextElementSibling;
+      if (!authorContainer) return;
+
+      const author = authorContainer.innerText.trim();
+      if (!author || author.length < 2) return;
+
+      span.setAttribute(INJECTED_ATTR, '1');
+      const link = makeLibLink(libraryAuthorUrl(author), '📚 lib');
+      authorContainer.parentNode.insertBefore(link, authorContainer.nextSibling);
     });
   }
 
