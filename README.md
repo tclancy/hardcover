@@ -45,3 +45,9 @@ To change the library, update `LIBRARY_BASE` in the script.
 ## Updating
 
 Edit the installed script via the Tampermonkey dashboard. Changes take effect on next page load.
+
+## Notes
+
+- Multiple authors
+- skip emojis, etc. Ignore commas
+- Drop articles from search text

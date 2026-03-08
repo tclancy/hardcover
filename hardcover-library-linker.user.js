@@ -17,7 +17,7 @@
   const LIBRARY_BASE = 'https://librarycatalog.dover.nh.gov/cgi-bin/koha/opac-search.pl';
 
   function libraryTitleUrl(title) {
-    return LIBRARY_BASE + '?q=' + encodeURIComponent(title) + '&limit=itype:BK';
+    return LIBRARY_BASE + '?q=' + encodeURIComponent(title) + '&limit=itype:BK&limit=branch%3ADOVER';
   }
 
   function libraryAuthorUrl(author) {
