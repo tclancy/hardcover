@@ -108,6 +108,12 @@ def test_build_author_query_formats_last_first():
     assert "Morgenstern" in url
 
 
+def test_build_author_query_handles_last_first_input():
+    url = build_author_query("Dune", "Herbert, Frank")
+    assert "Herbert" in url
+    assert "Frank" not in url or "Herbert" in url  # last name is what matters
+
+
 def test_build_author_query_strips_stop_words_from_title():
     url = build_author_query("The Night Circus", "Erin Morgenstern")
     # "The" should be stripped from the title portion

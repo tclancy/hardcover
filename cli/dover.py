@@ -67,7 +67,7 @@ def parse_search_results(html: str) -> list[dict]:
         year_el = container.select_one(YEAR_SELECTOR)
 
         title = title_el.get_text(strip=True) if title_el else ""
-        author = author_el.get_text(strip=True) if author_el else ""
+        author = author_el.get_text(separator=", ", strip=True) if author_el else ""
 
         year: int | None = None
         if year_el:
