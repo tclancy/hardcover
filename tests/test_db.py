@@ -1,10 +1,9 @@
 import pytest
-import sqlite3
-from cli.db import init_db, upsert_book, upsert_in_dover, get_all_books, get_in_dover_books, record_decision, get_decisions_for_book
+from cli.db import get_connection, init_db, upsert_book, upsert_in_dover, get_all_books, get_in_dover_books, record_decision, get_decisions_for_book
 
 @pytest.fixture
 def db():
-    conn = sqlite3.connect(":memory:")
+    conn = get_connection(":memory:")
     init_db(conn)
     yield conn
     conn.close()
