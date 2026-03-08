@@ -82,11 +82,11 @@ def parse_search_results(html: str) -> list[dict]:
 
 
 def search(query_url: str) -> list[dict]:
-    """Fetch a Koha search URL using a headless browser and return parsed results."""
+    """Fetch a Koha search URL using a headed browser to bypass Cloudflare WAF."""
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(headless=False, args=["--window-position=-2000,-2000"])
         page = browser.new_page()
         try:
             page.goto(query_url, wait_until="domcontentloaded", timeout=15000)
