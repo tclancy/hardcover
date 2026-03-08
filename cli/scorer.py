@@ -48,7 +48,7 @@ def score_match(*, hc_title: str, hc_author: str,
     author_last = 1.0 if hc_last == koha_last else 0.0
 
     year_score = 0.0
-    if hc_year and koha_year:
+    if hc_year is not None and koha_year is not None:
         year_score = 1.0 if hc_year == koha_year else 0.0
 
     weighted = (
