@@ -56,7 +56,10 @@ def _graphql_post(query: str, variables: dict | None = None, token: str = "") ->
             },
         )
         resp.raise_for_status()
-        return resp.json()
+        result = resp.json()
+        if "errors" in result:
+            raise RuntimeError(f"GraphQL error: {result['errors']}")
+        return result
 
 
 def extract_author_name(contributions: list[dict]) -> str:
