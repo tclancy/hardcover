@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-03-08
+
+- v2: Dover CLI (`dover`) — interactive Python CLI for checking Want to Read books against Dover Library
+- `dover sync` fetches Hardcover Want to Read and In Dover lists via GraphQL API, caches in SQLite
+- `dover check` picks a random book, runs two-phase Koha search (title, then title+author), prompts for confirmation
+- Weighted confidence scorer (title exact/fuzzy match, author last name, publication year)
+- Playwright-based search to bypass Cloudflare WAF on the library catalog
+- Local SQLite database tracks books, search results, and user match decisions
+
 ## 2026-03-06
 - Fix author detection on bookshelf pages: Hardcover's bookshelf has no `<a>` tag for authors, only nested spans
 - New strategy: find leaf `<span>` with "By" text, grab `nextElementSibling.innerText` for author name
