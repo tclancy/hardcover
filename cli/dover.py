@@ -10,7 +10,6 @@ Selectors are based on the Koha MARC21slim2OPACResults.xsl XSLT output:
 import re
 from urllib.parse import quote_plus
 
-import httpx
 from bs4 import BeautifulSoup
 
 from cli.scorer import strip_stop_words
@@ -82,15 +81,21 @@ def parse_search_results(html: str) -> list[dict]:
     return results
 
 
-def search(query_url: str, client: httpx.Client | None = None) -> list[dict]:
-    """Fetch a Koha search URL and return parsed results.
+def search(query_url: str) -> list[dict]:
+    """Fetch a Koha search URL using a headless browser and return parsed results."""
+    from playwright.sync_api import sync_playwright
 
-    Pass a pre-configured httpx.Client for testing (avoids live network calls).
-    """
-    if client is not None:
-        response = client.get(query_url)
-    else:
-        with httpx.Client(follow_redirects=True, timeout=15) as c:
-            response = c.get(query_url)
-    response.raise_for_status()
-    return parse_search_results(response.text)
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        try:
+            page.goto(query_url, wait_until="domcontentloaded", timeout=15000)
+            # Wait for results container or no-results message
+            try:
+                page.wait_for_selector("td.bibliocol, #noresults, .alert-info", timeout=8000)
+            except Exception:
+                pass  # proceed and parse whatever we got
+            html = page.content()
+        finally:
+            browser.close()
+    return parse_search_results(html)
