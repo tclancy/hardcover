@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-03-13
+
+- fix: Show all phase-2 results sorted by confidence when result count exceeds threshold — removes silent top-5 truncation that hid the correct match (issue #1: The Bat by Jo Nesbø)
+- feat: Add tests/test_main.py with 6 tests covering check command result display logic
+- 35 tests passing; branch: `claude/fix-all-results-issue-1`
+
 ## 2026-03-08
 
 - v2: Dover CLI (`dover`) — interactive Python CLI for checking Want to Read books against Dover Library
