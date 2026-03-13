@@ -139,11 +139,11 @@ def check():
     if len(results2) <= RESULT_THRESHOLD_FEW:
         _ask_user(results2, book, q2, conn)
     else:
-        # Still too many — show top 5 by confidence score
-        typer.echo("  Still many results — showing top 5 by confidence score:")
+        # Still too many — show all results sorted by confidence score
+        typer.echo(f"  Still many results — showing all {len(results2)} sorted by confidence:")
         scored = sorted(results2, key=lambda r: score_match(
             hc_title=book["title"], hc_author=book["author"],
             koha_title=r["title"], koha_author=r.get("author", ""),
             koha_year=r.get("year")
         ), reverse=True)
-        _ask_user(scored[:5], book, q2, conn)
+        _ask_user(scored, book, q2, conn)
