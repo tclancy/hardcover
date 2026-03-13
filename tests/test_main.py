@@ -2,9 +2,8 @@
 Tests for cli.main — focusing on the check command's result display logic.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 from typer.testing import CliRunner
 
 from cli.main import app, RESULT_THRESHOLD_FEW, _display_results
@@ -14,10 +13,11 @@ runner = CliRunner()
 
 BOOK = {"hardcover_id": 1, "title": "The Bat", "author": "Jo Nesbø"}
 
+
 # Build a list of fake results, more than the threshold
 def _make_results(n: int) -> list[dict]:
     return [
-        {"title": f"Book {i}", "author": f"Nesbø, Jo", "year": 2000 + i}
+        {"title": f"Book {i}", "author": "Nesbø, Jo", "year": 2000 + i}
         for i in range(n)
     ]
 
@@ -87,7 +87,7 @@ class TestCheckCommand:
     def test_phase2_few_results_unchanged(self):
         """When phase 2 returns ≤10 results, behavior is unchanged."""
         results1 = _make_results(13)  # triggers phase 2
-        results2 = _make_results(5)   # phase 2 has few results → show all
+        results2 = _make_results(5)  # phase 2 has few results → show all
 
         result = self._run_check_patched(results1, results2)
 
