@@ -86,13 +86,17 @@ def search(query_url: str) -> list[dict]:
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False, args=["--window-position=-2000,-2000"])
+        browser = p.chromium.launch(
+            headless=False, args=["--window-position=-2000,-2000"]
+        )
         page = browser.new_page()
         try:
             page.goto(query_url, wait_until="domcontentloaded", timeout=15000)
             # Wait for results container or no-results message
             try:
-                page.wait_for_selector("td.bibliocol, #noresults, .alert-info", timeout=8000)
+                page.wait_for_selector(
+                    "td.bibliocol, #noresults, .alert-info", timeout=8000
+                )
             except Exception:
                 pass  # proceed and parse whatever we got
             html = page.content()

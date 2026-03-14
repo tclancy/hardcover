@@ -1,7 +1,23 @@
 import difflib
 import re
 
-STOP_WORDS = {"the", "a", "an", "of", "in", "and", "or", "to", "for", "with", "at", "by", "from", "on", "as"}
+STOP_WORDS = {
+    "the",
+    "a",
+    "an",
+    "of",
+    "in",
+    "and",
+    "or",
+    "to",
+    "for",
+    "with",
+    "at",
+    "by",
+    "from",
+    "on",
+    "as",
+}
 
 WEIGHTS = {
     "title_exact": 1.0,
@@ -34,9 +50,15 @@ def _extract_last_name(author: str) -> str:
     return parts[-1].lower() if parts else author.lower()
 
 
-def score_match(*, hc_title: str, hc_author: str,
-                koha_title: str, koha_author: str,
-                koha_year: int | None, hc_year: int | None = None) -> float:
+def score_match(
+    *,
+    hc_title: str,
+    hc_author: str,
+    koha_title: str,
+    koha_author: str,
+    koha_year: int | None,
+    hc_year: int | None = None,
+) -> float:
     norm_hc = normalize_title(hc_title)
     norm_koha = normalize_title(koha_title)
 

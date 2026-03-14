@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import patch
 from cli.hardcover import fetch_want_to_read, fetch_in_dover_list, extract_author_name
 
@@ -29,7 +28,9 @@ def test_fetch_want_to_read_parses_response():
                                 "id": 1,
                                 "title": "Dune",
                                 "slug": "dune",
-                                "contributions": [{"author": {"name": "Frank Herbert"}}],
+                                "contributions": [
+                                    {"author": {"name": "Frank Herbert"}}
+                                ],
                             }
                         }
                     ]

@@ -55,8 +55,11 @@ def init_db(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
-def upsert_book(conn: sqlite3.Connection, *, hardcover_id: int, title: str, author: str, slug: str) -> None:
-    conn.execute("""
+def upsert_book(
+    conn: sqlite3.Connection, *, hardcover_id: int, title: str, author: str, slug: str
+) -> None:
+    conn.execute(
+        """
         INSERT INTO books (hardcover_id, title, author, slug, synced_at)
         VALUES (?, ?, ?, ?, datetime('now'))
         ON CONFLICT(hardcover_id) DO UPDATE SET
@@ -64,12 +67,17 @@ def upsert_book(conn: sqlite3.Connection, *, hardcover_id: int, title: str, auth
             author=excluded.author,
             slug=excluded.slug,
             synced_at=excluded.synced_at
-    """, (hardcover_id, title, author, slug))
+    """,
+        (hardcover_id, title, author, slug),
+    )
     conn.commit()
 
 
-def upsert_in_dover(conn: sqlite3.Connection, *, hardcover_id: int, title: str, author: str, slug: str) -> None:
-    conn.execute("""
+def upsert_in_dover(
+    conn: sqlite3.Connection, *, hardcover_id: int, title: str, author: str, slug: str
+) -> None:
+    conn.execute(
+        """
         INSERT INTO in_dover (hardcover_id, title, author, slug, synced_at)
         VALUES (?, ?, ?, ?, datetime('now'))
         ON CONFLICT(hardcover_id) DO UPDATE SET
@@ -77,7 +85,9 @@ def upsert_in_dover(conn: sqlite3.Connection, *, hardcover_id: int, title: str, 
             author=excluded.author,
             slug=excluded.slug,
             synced_at=excluded.synced_at
-    """, (hardcover_id, title, author, slug))
+    """,
+        (hardcover_id, title, author, slug),
+    )
     conn.commit()
 
 
@@ -89,20 +99,39 @@ def get_in_dover_books(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     return [dict(row) for row in conn.execute("SELECT * FROM in_dover").fetchall()]
 
 
-def record_decision(conn: sqlite3.Connection, *, hardcover_id: int, koha_title: str | None,
-                    koha_author: str | None, confirmed: bool, confidence: float | None,
-                    search_query: str) -> None:
-    conn.execute("""
+def record_decision(
+    conn: sqlite3.Connection,
+    *,
+    hardcover_id: int,
+    koha_title: str | None,
+    koha_author: str | None,
+    confirmed: bool,
+    confidence: float | None,
+    search_query: str,
+) -> None:
+    conn.execute(
+        """
         INSERT INTO decisions (hardcover_id, koha_title, koha_author, confirmed, confidence, search_query)
         VALUES (?, ?, ?, ?, ?, ?)
-    """, (hardcover_id, koha_title, koha_author, int(confirmed), confidence, search_query))
+    """,
+        (
+            hardcover_id,
+            koha_title,
+            koha_author,
+            int(confirmed),
+            confidence,
+            search_query,
+        ),
+    )
     conn.commit()
 
 
-def get_decisions_for_book(conn: sqlite3.Connection, *, hardcover_id: int) -> list[dict[str, Any]]:
+def get_decisions_for_book(
+    conn: sqlite3.Connection, *, hardcover_id: int
+) -> list[dict[str, Any]]:
     rows = conn.execute(
         "SELECT * FROM decisions WHERE hardcover_id = ? ORDER BY decided_at DESC",
-        (hardcover_id,)
+        (hardcover_id,),
     ).fetchall()
     result = []
     for row in rows:

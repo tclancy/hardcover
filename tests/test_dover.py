@@ -1,5 +1,9 @@
-import pytest
-from cli.dover import parse_search_results, build_title_query, build_author_query, strip_stop_words_from_query
+from cli.dover import (
+    parse_search_results,
+    build_title_query,
+    build_author_query,
+    strip_stop_words_from_query,
+)
 
 # Fixture HTML based on actual Koha XSLT output structure (MARC21slim2OPACResults.xsl):
 # - Title: <a class="title">
