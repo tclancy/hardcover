@@ -5,6 +5,28 @@ from cli.dover import (
     strip_stop_words_from_query,
 )
 
+# Multi-span title fixture: simulates Koha MARC 245 $a/$b/$c subfields rendered as separate
+# <span> elements inside a.title — the title parsing bug caused these to run together without spaces.
+SAMPLE_HTML_MULTISPAN_TITLE = """
+<table>
+  <tr>
+    <td class="bibliocol">
+      <a class="title" href="/cgi-bin/koha/opac-detail.pl?biblionumber=999">
+        <span>The gold bug variations</span>
+        <span>/</span>
+        <span>Richard Powers.</span>
+      </a>
+      <ul class="author resource_list">
+        <li><a href="/cgi-bin/koha/opac-search.pl?q=au%3APowers">Powers, Richard</a></li>
+      </ul>
+      <div class="results_summary publisher">
+        <span class="publisher_date">1991</span>
+      </div>
+    </td>
+  </tr>
+</table>
+"""
+
 # Fixture HTML based on actual Koha XSLT output structure (MARC21slim2OPACResults.xsl):
 # - Title: <a class="title">
 # - Author: <ul class="author resource_list"><li><a>...</a></li></ul>
@@ -129,3 +151,30 @@ def test_strip_stop_words_from_query():
     assert strip_stop_words_from_query("The Night Circus") == "Night Circus"
     assert strip_stop_words_from_query("Dune") == "Dune"
     assert strip_stop_words_from_query("A Tale of Two Cities") == "Tale Two Cities"
+
+
+def test_parse_multispan_title_no_runon():
+    """Title spans must be joined with spaces, not concatenated bare (the parsing bug)."""
+    results = parse_search_results(SAMPLE_HTML_MULTISPAN_TITLE)
+    assert len(results) == 1
+    title = results[0]["title"]
+    # Must not be run-together
+    assert "Thegoldbug" not in title
+    # Must contain the main title words with spaces
+    assert "gold bug variations" in title.lower()
+
+
+def test_parse_multispan_title_strips_responsibility_statement():
+    """Trailing '/ Author Name.' MARC $c subfield must be stripped from the title."""
+    results = parse_search_results(SAMPLE_HTML_MULTISPAN_TITLE)
+    assert len(results) == 1
+    title = results[0]["title"]
+    # The '/ Richard Powers.' responsibility statement must be gone
+    assert "Richard Powers" not in title
+    assert "/" not in title
+
+
+def test_build_title_query_includes_idx_ti():
+    """Title queries must include idx=ti to target the Koha title index."""
+    url = build_title_query("Dune")
+    assert "idx=ti" in url

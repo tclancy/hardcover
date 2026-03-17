@@ -27,6 +27,7 @@ IN_DOVER_QUERY = """
 query InDoverList($slug: String!) {
   me {
     lists(where: {slug: {_eq: $slug}}) {
+      id
       list_books {
         book {
           id
@@ -40,6 +41,14 @@ query InDoverList($slug: String!) {
         }
       }
     }
+  }
+}
+"""
+
+ADD_BOOK_TO_LIST_MUTATION = """
+mutation AddBookToList($listId: Int!, $bookId: Int!) {
+  insert_list_books_one(object: {list_id: $listId, book_id: $bookId}) {
+    id
   }
 }
 """
@@ -99,3 +108,28 @@ def fetch_in_dover_list(token: str, slug: str = IN_DOVER_LIST_SLUG) -> list[dict
         return []
     list_books = lists[0]["list_books"]
     return [_parse_book(lb["book"]) for lb in list_books]
+
+
+def fetch_in_dover_list_id(token: str, slug: str = IN_DOVER_LIST_SLUG) -> int | None:
+    """Return the integer ID of the In Dover list, or None if not found."""
+    data = _graphql_post(IN_DOVER_QUERY, variables={"slug": slug}, token=token)
+    me = data["data"]["me"]
+    if not me:
+        return None
+    lists = me[0]["lists"]
+    if not lists:
+        return None
+    return lists[0]["id"]
+
+
+def add_book_to_list(token: str, list_id: int, book_id: int) -> bool:
+    """Add a book to a Hardcover list. Returns True on success, False on error."""
+    try:
+        _graphql_post(
+            ADD_BOOK_TO_LIST_MUTATION,
+            variables={"listId": list_id, "bookId": book_id},
+            token=token,
+        )
+        return True
+    except (RuntimeError, Exception):
+        return False

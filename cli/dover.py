@@ -30,9 +30,9 @@ def strip_stop_words_from_query(title: str) -> str:
 
 
 def build_title_query(title: str) -> str:
-    """Build a Koha search URL for a title-only search (stop words stripped)."""
+    """Build a Koha search URL for a title-only search (stop words stripped, title index targeted)."""
     clean = strip_stop_words_from_query(title)
-    return f"{KOHA_BASE}?q={quote_plus(clean)}{KOHA_LIMITS}"
+    return f"{KOHA_BASE}?q={quote_plus(clean)}&idx=ti{KOHA_LIMITS}"
 
 
 def build_author_query(title: str, author: str) -> str:
@@ -65,7 +65,9 @@ def parse_search_results(html: str) -> list[dict]:
         author_el = container.select_one(AUTHOR_SELECTOR)
         year_el = container.select_one(YEAR_SELECTOR)
 
-        title = title_el.get_text(strip=True) if title_el else ""
+        raw_title = title_el.get_text(separator=" ", strip=True) if title_el else ""
+        # Strip trailing MARC $c "statement of responsibility" (e.g., "/ Richard Powers.")
+        title = re.sub(r"\s*/\s*[^/]+$", "", raw_title).strip()
         author = author_el.get_text(separator=", ", strip=True) if author_el else ""
 
         year: int | None = None
@@ -81,14 +83,20 @@ def parse_search_results(html: str) -> list[dict]:
     return results
 
 
-def search(query_url: str) -> list[dict]:
-    """Fetch a Koha search URL using a headed browser to bypass Cloudflare WAF."""
+def search(query_url: str, headless: bool = False) -> list[dict]:
+    """Fetch a Koha search URL using a browser to bypass Cloudflare WAF.
+
+    headless=False (default): positions window off-screen; avoids Cloudflare detection.
+    headless=True: faster but may be blocked by Cloudflare WAF.
+    """
     from playwright.sync_api import sync_playwright
 
+    launch_kwargs: dict = {"headless": headless}
+    if not headless:
+        launch_kwargs["args"] = ["--window-position=-2000,-2000"]
+
     with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=False, args=["--window-position=-2000,-2000"]
-        )
+        browser = p.chromium.launch(**launch_kwargs)
         page = browser.new_page()
         try:
             page.goto(query_url, wait_until="domcontentloaded", timeout=15000)
