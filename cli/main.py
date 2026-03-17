@@ -222,7 +222,9 @@ def _present_results(
 @app.command()
 def check(
     auto_add: bool = typer.Option(
-        True, "--auto-add/--no-auto-add", help="Auto-add high-confidence matches to In Dover list"
+        True,
+        "--auto-add/--no-auto-add",
+        help="Auto-add high-confidence matches to In Dover list",
     ),
 ):
     """Pick a random book from Want to Read and search Dover Library."""
@@ -276,7 +278,9 @@ def check(
         return
 
     # Still too many — sort by score and present
-    typer.echo(f"  Still many results — showing all {len(results2)} sorted by confidence:")
+    typer.echo(
+        f"  Still many results — showing all {len(results2)} sorted by confidence:"
+    )
     scored = sorted(
         results2,
         key=lambda r: score_match(
@@ -297,7 +301,9 @@ def _print_calibration_report(scores: list[float], failed: list[str]) -> None:
     typer.echo("CALIBRATION RESULTS")
     typer.echo("═" * 50)
     if not scores:
-        typer.echo("No results found for any book. Cloudflare may be blocking headless mode.")
+        typer.echo(
+            "No results found for any book. Cloudflare may be blocking headless mode."
+        )
         typer.echo("Try running: dover calibrate --no-headless")
         return
     typer.echo(f"Books with results:  {len(scores)}")
@@ -320,7 +326,9 @@ def _search_with_fallback(book: dict, headless: bool) -> list[dict]:
     """Search by title; fall back to title+author if no results."""
     results = search(build_title_query(book["title"]), headless=headless)
     if not results:
-        results = search(build_author_query(book["title"], book["author"]), headless=headless)
+        results = search(
+            build_author_query(book["title"], book["author"]), headless=headless
+        )
     return results
 
 
