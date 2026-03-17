@@ -1,5 +1,11 @@
 from unittest.mock import patch
-from cli.hardcover import fetch_want_to_read, fetch_in_dover_list, extract_author_name
+from cli.hardcover import (
+    fetch_want_to_read,
+    fetch_in_dover_list,
+    fetch_in_dover_list_id,
+    add_book_to_list,
+    extract_author_name,
+)
 
 
 def test_extract_author_name_from_contributions():
@@ -116,3 +122,43 @@ def test_fetch_in_dover_list_no_matching_list():
     with patch("cli.hardcover._graphql_post", return_value=fake_response):
         books = fetch_in_dover_list(token="fake", slug="in-dover")
     assert books == []
+
+
+def test_fetch_in_dover_list_id_returns_id():
+    fake_response = {
+        "data": {
+            "me": [
+                {
+                    "lists": [
+                        {
+                            "id": 42,
+                            "list_books": [],
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+    with patch("cli.hardcover._graphql_post", return_value=fake_response):
+        list_id = fetch_in_dover_list_id(token="fake")
+    assert list_id == 42
+
+
+def test_fetch_in_dover_list_id_returns_none_when_empty():
+    fake_response = {"data": {"me": [{"lists": []}]}}
+    with patch("cli.hardcover._graphql_post", return_value=fake_response):
+        list_id = fetch_in_dover_list_id(token="fake")
+    assert list_id is None
+
+
+def test_add_book_to_list_returns_true_on_success():
+    fake_response = {"data": {"insert_list_books_one": {"id": 100}}}
+    with patch("cli.hardcover._graphql_post", return_value=fake_response):
+        result = add_book_to_list(token="fake", list_id=42, book_id=7)
+    assert result is True
+
+
+def test_add_book_to_list_returns_false_on_error():
+    with patch("cli.hardcover._graphql_post", side_effect=RuntimeError("API error")):
+        result = add_book_to_list(token="fake", list_id=42, book_id=7)
+    assert result is False
