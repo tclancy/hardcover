@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-03-18
+
+- fix: Handle Koha exact-match redirect to `opac-detail.pl` — `search()` was returning 0 results when Koha redirected to the detail page instead of a search results page
+- feat: Add `parse_detail_page()` using Koha Bootstrap OPAC detail selectors; results carry `exact_match: True` for traceability
+- 46 tests passing; branch: `claude/exact-match-search-5`; PR #6
+
 ## 2026-03-17
 
 - fix: Title parsing bug — `get_text(separator=" ")` prevents MARC subfield spans running together; strip trailing `/ Author Name.` responsibility statement. Confidence scores for known positives should jump from ~0.42 to ~0.85–0.95.

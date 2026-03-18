@@ -16,12 +16,17 @@ from cli.scorer import strip_stop_words
 
 KOHA_BASE = "https://librarycatalog.dover.nh.gov/cgi-bin/koha/opac-search.pl"
 KOHA_LIMITS = "&limit=itype%3ABK&limit=branch%3ADOVER"
+KOHA_DETAIL_PATH = "opac-detail.pl"
 
 # CSS selectors verified against Koha XSLT output (MARC21slim2OPACResults.xsl)
 RESULT_CONTAINER = "td.bibliocol"
 TITLE_SELECTOR = "a.title"
 AUTHOR_SELECTOR = "ul.author"
 YEAR_SELECTOR = "span.publisher_date"
+
+# CSS selectors for opac-detail.pl (Koha Bootstrap OPAC detail template)
+DETAIL_TITLE_SELECTORS = ["h1#title span.title", "h1#title", "h1.title"]
+DETAIL_AUTHOR_SELECTORS = ["p.author a", "p.author", "span.author a", "span.author"]
 
 
 def strip_stop_words_from_query(title: str) -> str:
@@ -83,6 +88,45 @@ def parse_search_results(html: str) -> list[dict]:
     return results
 
 
+def parse_detail_page(html: str) -> list[dict]:
+    """Parse a Koha OPAC detail page (opac-detail.pl) into a single-item result list.
+
+    Koha redirects to the detail page when a search query matches exactly one record.
+    This parser handles that response so the caller treats it as a 1-result search.
+    Returns an empty list if the title cannot be found (guard against unexpected HTML).
+    """
+    soup = BeautifulSoup(html, "html.parser")
+
+    title = ""
+    for selector in DETAIL_TITLE_SELECTORS:
+        el = soup.select_one(selector)
+        if el:
+            raw = el.get_text(separator=" ", strip=True)
+            title = re.sub(r"\s*/\s*[^/]+$", "", raw).strip()
+            if title:
+                break
+
+    if not title:
+        return []
+
+    author = ""
+    for selector in DETAIL_AUTHOR_SELECTORS:
+        el = soup.select_one(selector)
+        if el:
+            author = el.get_text(separator=", ", strip=True)
+            if author:
+                break
+
+    year: int | None = None
+    year_el = soup.select_one(YEAR_SELECTOR)
+    if year_el:
+        m = re.search(r"\b(19|20)\d{2}\b", year_el.get_text(strip=True))
+        if m:
+            year = int(m.group())
+
+    return [{"title": title, "author": author, "year": year, "exact_match": True}]
+
+
 def search(query_url: str, headless: bool = False) -> list[dict]:
     """Fetch a Koha search URL using a browser to bypass Cloudflare WAF.
 
@@ -100,14 +144,18 @@ def search(query_url: str, headless: bool = False) -> list[dict]:
         page = browser.new_page()
         try:
             page.goto(query_url, wait_until="domcontentloaded", timeout=15000)
-            # Wait for results container or no-results message
+            # Wait for results container, detail page title, or no-results message
             try:
                 page.wait_for_selector(
-                    "td.bibliocol, #noresults, .alert-info", timeout=8000
+                    "td.bibliocol, h1#title, #noresults, .alert-info", timeout=8000
                 )
             except Exception:
                 pass  # proceed and parse whatever we got
+            final_url = page.url
             html = page.content()
         finally:
             browser.close()
+
+    if KOHA_DETAIL_PATH in final_url:
+        return parse_detail_page(html)
     return parse_search_results(html)

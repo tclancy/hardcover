@@ -1,5 +1,6 @@
 from cli.dover import (
     parse_search_results,
+    parse_detail_page,
     build_title_query,
     build_author_query,
     strip_stop_words_from_query,
@@ -178,3 +179,82 @@ def test_build_title_query_includes_idx_ti():
     """Title queries must include idx=ti to target the Koha title index."""
     url = build_title_query("Dune")
     assert "idx=ti" in url
+
+
+# Koha OPAC detail page fixture (Bootstrap theme, MARC21slim2OPACDetail.xsl output)
+SAMPLE_DETAIL_HTML = """
+<html>
+<body>
+  <h1 id="title">
+    <span class="title">Dune</span>
+  </h1>
+  <p class="author">By <a href="/cgi-bin/koha/opac-search.pl?q=au%3AHerbert">Herbert, Frank</a></p>
+  <div class="results_summary publisher">
+    <span class="publisher_date">1965</span>
+  </div>
+</body>
+</html>
+"""
+
+SAMPLE_DETAIL_HTML_MULTISPAN = """
+<html>
+<body>
+  <h1 id="title">
+    <span class="title">Foundation</span>
+    <span class="subtitle">and Empire</span>
+  </h1>
+  <p class="author">By <a href="/cgi-bin/koha/opac-search.pl?q=au%3AAsimov">Asimov, Isaac</a></p>
+  <div class="results_summary publisher">
+    <span class="publisher_date">1952</span>
+  </div>
+</body>
+</html>
+"""
+
+SAMPLE_DETAIL_HTML_NO_YEAR = """
+<html>
+<body>
+  <h1 id="title"><span class="title">Dune</span></h1>
+  <p class="author">By <a href="#">Herbert, Frank</a></p>
+</body>
+</html>
+"""
+
+SAMPLE_DETAIL_HTML_NO_TITLE = """
+<html>
+<body>
+  <div id="main">No book found.</div>
+</body>
+</html>
+"""
+
+
+def test_parse_detail_page_basic():
+    """Detail page with standard selectors returns a single result."""
+    results = parse_detail_page(SAMPLE_DETAIL_HTML)
+    assert len(results) == 1
+    assert results[0]["title"] == "Dune"
+    assert results[0]["author"] == "Herbert, Frank"
+    assert results[0]["year"] == 1965
+    assert results[0]["exact_match"] is True
+
+
+def test_parse_detail_page_multispan():
+    """Detail page with subtitle span still returns a usable title."""
+    results = parse_detail_page(SAMPLE_DETAIL_HTML_MULTISPAN)
+    assert len(results) == 1
+    assert "Foundation" in results[0]["title"]
+    assert results[0]["exact_match"] is True
+
+
+def test_parse_detail_page_no_year():
+    """Detail page without publication date returns year=None."""
+    results = parse_detail_page(SAMPLE_DETAIL_HTML_NO_YEAR)
+    assert len(results) == 1
+    assert results[0]["year"] is None
+
+
+def test_parse_detail_page_no_title_returns_empty():
+    """Detail page with no recognisable title returns empty list (false-positive guard)."""
+    results = parse_detail_page(SAMPLE_DETAIL_HTML_NO_TITLE)
+    assert results == []
