@@ -51,3 +51,6 @@
 - Uses href-pattern detection (`/books/`, `/authors/`) instead of fragile class selectors
 - MutationObserver handles SPA navigation and lazy-loaded content
 - README with installation instructions and library URL patterns
+
+## 2026-03-19
+- Fix tests that depend on HARDCOVER_TOKEN env var by mocking _get_token and fetch_in_dover_list_id in TestCheckCommand (issue #7, PR #8)

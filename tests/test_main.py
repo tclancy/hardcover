@@ -49,6 +49,8 @@ class TestCheckCommand:
     def _run_check_patched(self, results1, results2, user_input="s"):
         """Run the `check` command with mocked DB, search, and user prompt."""
         with (
+            patch("cli.main._get_token", return_value="fake"),
+            patch("cli.main.fetch_in_dover_list_id", return_value=99),
             patch("cli.main.get_connection"),
             patch("cli.main.init_db"),
             patch("cli.main.get_all_books", return_value=[BOOK]),
