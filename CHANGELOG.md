@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-03-27
+- fix: Userscript v2.0.0 — page-type-aware injection fixes broken SPA navigation (issue #9)
+  - Root cause: MutationObserver was calling the same inject function on both bookshelf and book
+    detail pages; on detail pages, tab nav links ("Book Info", "Editions", "Lists") matched
+    `a[href^="/books/"]` and got library links injected after them incorrectly
+  - Add `getPageType()` to detect bookshelf/list pages vs book detail pages vs sub-pages
+  - On bookshelf/list pages: existing href-based title + span-based "By" author detection (unchanged)
+  - On book detail pages: use `<h1>` for title (semantic, not class-dependent) and
+    `a[href^="/authors/"]` for author (URL-based); never touches tab nav links
+  - Add `@match https://hardcover.app/@*/lists/*` so list pages (e.g. "In Dover") also work
+  - branch: `claude/fix-userscript-issue-9`; PR #10
+
 ## 2026-03-18
 
 - fix: Handle Koha exact-match redirect to `opac-detail.pl` — `search()` was returning 0 results when Koha redirected to the detail page instead of a search results page
