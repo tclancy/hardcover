@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Hardcover → Dover Library Linker
 // @namespace    https://github.com/tclancy/hardcover-library-linker
-// @version      1.1.0
-// @description  Adds Dover Public Library search links next to book titles and authors on Hardcover bookshelf pages
+// @version      2.0.0
+// @description  Adds Dover Public Library search links next to book titles and authors on Hardcover bookshelf, list, and book detail pages
 // @author       Tom Clancy
 // @match        https://hardcover.app/@*/books/*
+// @match        https://hardcover.app/@*/lists/*
 // @match        https://hardcover.app/books/*
 // @grant        none
 // @run-at       document-idle
@@ -70,29 +71,33 @@
     el.parentNode.insertBefore(link, el.nextSibling);
   }
 
-  // ── Selector strategies ──────────────────────────────────────────────────────
+  // ── Page type detection ───────────────────────────────────────────────────────
   //
-  // Hardcover is a React + Inertia.js SPA with Tailwind CSS.
-  // Class names may be hashed/purged so we find elements by their href patterns:
-  //   - Book links:   href="/books/<slug>"
-  //   - Author links (detail pages): href="/authors/<slug>" or "/contributors/<slug>"
-  //   - Author bylines (bookshelf pages): no anchor — a span.flex-inline containing
-  //     a child span with "By" text, followed by a sibling span with the author name.
+  // Hardcover is a React SPA — the URL changes on navigation without a full page
+  // reload. We re-detect page type on every inject call so the MutationObserver
+  // works correctly across SPA navigations.
   //
-  //     Example DOM structure:
-  //       <span class="flex-inline flex-row flex-wrap leading-5">
-  //         <span class="text-md mr-1">By</span>
-  //         <span class="flex-inline flex-row mr-1">   ← author name container
-  //           <span class="flex-inline flex-row items-center">
-  //             <span>Lucy Ellmann</span>
-  //           </span>
-  //         </span>
-  //       </span>
-  //
-  // Strategy: find the "By" span, take its nextElementSibling, grab .innerText.
+  //   user-page    /@user/books/* or /@user/lists/*  — bookshelf / reading lists
+  //   book-detail  /books/slug (no sub-path)          — individual book page
+  //   other                                            — skip injection
 
-  function injectBookLinks() {
-    // Book title links
+  function getPageType() {
+    const path = window.location.pathname;
+    if (/^\/@[^/]+\//.test(path)) return 'user-page';       // /@user/books/*, /@user/lists/*
+    if (/^\/books\/[^/]+$/.test(path)) return 'book-detail'; // /books/slug only, not /books/slug/editions
+    return 'other';
+  }
+
+  // ── Bookshelf / list page injection ─────────────────────────────────────────
+  //
+  // Strategy: find book title anchors by their /books/ href, find author bylines
+  // by the leaf <span> with text "By" followed by a sibling author container.
+  //
+  // Why href-based (not class-based): Tailwind class names are stable-ish, but
+  // href patterns (/books/slug) are tied to routes which are much more stable.
+
+  function injectBookshelfLinks() {
+    // Book title links: <a href="/books/slug"> with meaningful text content
     const bookAnchors = document.querySelectorAll(
       'a[href^="/books/"]:not([' + INJECTED_ATTR + '])'
     );
@@ -100,28 +105,23 @@
       const title = anchor.textContent.trim();
       if (!title || title.length < 2) return;
       anchor.setAttribute(INJECTED_ATTR, '1');
-      const link = makeLibLink(libraryTitleUrl(title), '📚 lib');
-      injectAfter(anchor, link);
+      injectAfter(anchor, makeLibLink(libraryTitleUrl(title), '📚 lib'));
     });
 
-    // Author links (detail/author pages — anchor-based)
-    const authorAnchors = document.querySelectorAll(
-      'a[href^="/authors/"]:not([' + INJECTED_ATTR + ']), a[href^="/contributors/"]:not([' + INJECTED_ATTR + '])'
-    );
-    authorAnchors.forEach((anchor) => {
-      const author = anchor.textContent.trim();
-      if (!author || author.length < 2) return;
-      anchor.setAttribute(INJECTED_ATTR, '1');
-      const link = makeLibLink(libraryAuthorUrl(author), '📚 lib');
-      injectAfter(anchor, link);
-    });
-
-    // Author bylines (bookshelf pages — span-based, no anchor)
-    // Find every span whose direct text content is "By" or starts with "By"
-    // then take the next sibling span as the author name container.
+    // Author bylines: leaf <span> with text "By", next sibling is the author container
+    //
+    // Example DOM (as of 2026-03-27):
+    //   <span class="flex-inline flex-row flex-wrap leading-5">
+    //     <span class="text-md mr-1">By</span>      ← find this
+    //     <span class="flex-inline flex-row mr-1">   ← take .innerText of this
+    //       <span class="flex-inline flex-row items-center">
+    //         <span>Lucy Ellmann</span>
+    //       </span>
+    //     </span>
+    //   </span>
     const allSpans = document.querySelectorAll('span:not([' + INJECTED_ATTR + '])');
     allSpans.forEach((span) => {
-      if (span.children.length > 0) return;
+      if (span.children.length > 0) return; // must be a leaf span
       const text = span.textContent.trim();
       if (text !== 'By' && !text.startsWith('By ')) return;
 
@@ -132,9 +132,54 @@
       if (!author || author.length < 2) return;
 
       span.setAttribute(INJECTED_ATTR, '1');
-      const link = makeLibLink(libraryAuthorUrl(author), '📚 lib');
-      authorContainer.parentNode.insertBefore(link, authorContainer.nextSibling);
+      authorContainer.parentNode.insertBefore(
+        makeLibLink(libraryAuthorUrl(author), '📚 lib'),
+        authorContainer.nextSibling
+      );
     });
+  }
+
+  // ── Book detail page injection ────────────────────────────────────────────────
+  //
+  // On detail pages (/books/slug), the tab navigation also uses a[href^="/books/"]
+  // anchors ("Book Info", "Editions", "Lists") — we must NOT use that selector here
+  // or we inject library links into the nav tabs.
+  //
+  // Instead:
+  //   - Title: use <h1> — semantic, route-independent, unlikely to change
+  //   - Authors: use a[href^="/authors/"] — URL-based, stable as long as routes hold
+
+  function injectDetailLinks() {
+    // Title: inject after the h1
+    const h1 = document.querySelector('h1:not([' + INJECTED_ATTR + '])');
+    if (h1) {
+      const title = h1.textContent.trim();
+      if (title && title.length >= 2) {
+        h1.setAttribute(INJECTED_ATTR, '1');
+        injectAfter(h1, makeLibLink(libraryTitleUrl(title), '📚 lib'));
+      }
+    }
+
+    // Authors: <a href="/authors/..."> or <a href="/contributors/...">
+    // These may appear more than once on the page; INJECTED_ATTR prevents duplicates.
+    const authorAnchors = document.querySelectorAll(
+      'a[href^="/authors/"]:not([' + INJECTED_ATTR + ']), ' +
+      'a[href^="/contributors/"]:not([' + INJECTED_ATTR + '])'
+    );
+    authorAnchors.forEach((anchor) => {
+      const author = anchor.textContent.trim();
+      if (!author || author.length < 2) return;
+      anchor.setAttribute(INJECTED_ATTR, '1');
+      injectAfter(anchor, makeLibLink(libraryAuthorUrl(author), '📚 lib'));
+    });
+  }
+
+  // ── Entry point: dispatch based on current page type ─────────────────────────
+  function injectAll() {
+    const type = getPageType();
+    if (type === 'user-page') injectBookshelfLinks();
+    else if (type === 'book-detail') injectDetailLinks();
+    // 'other': no-op — sub-pages like /books/slug/editions, /books/slug/lists, etc.
   }
 
   // ── MutationObserver: handles SPA navigation and lazy-loaded content ─────────
@@ -142,7 +187,7 @@
 
   function scheduleInject() {
     clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(injectBookLinks, 300);
+    debounceTimer = setTimeout(injectAll, 300);
   }
 
   const observer = new MutationObserver((mutations) => {
@@ -157,6 +202,5 @@
   observer.observe(document.body, { childList: true, subtree: true });
 
   // ── Initial run ──────────────────────────────────────────────────────────────
-  // Run once after DOM is ready; MutationObserver handles everything after that.
-  injectBookLinks();
+  injectAll();
 })();
